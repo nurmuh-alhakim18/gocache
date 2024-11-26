@@ -6,8 +6,9 @@ import (
 )
 
 type Cache struct {
-	cache map[string]cacheItem
-	mu    sync.RWMutex
+	cache    map[string]cacheItem
+	mu       sync.RWMutex
+	stopChan chan struct{}
 }
 
 type cacheItem struct {
@@ -16,10 +17,14 @@ type cacheItem struct {
 }
 
 func NewCache() *Cache {
-	return &Cache{
-		cache: make(map[string]cacheItem),
-		mu:    sync.RWMutex{},
+	c := &Cache{
+		cache:    make(map[string]cacheItem),
+		mu:       sync.RWMutex{},
+		stopChan: make(chan struct{}),
 	}
+
+	go c.cleanUp()
+	return c
 }
 
 func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
@@ -33,9 +38,11 @@ func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
 
 func (c *Cache) Get(key string) (interface{}, bool) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
 	cacheItem, ok := c.cache[key]
+	c.mu.RUnlock()
+
 	if !ok || cacheItem.expiryTime.Before(time.Now().UTC()) {
+		c.Delete(key)
 		return nil, false
 	}
 
@@ -46,4 +53,29 @@ func (c *Cache) Delete(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.cache, key)
+}
+
+func (c *Cache) cleanUp() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			c.mu.Lock()
+			for key, item := range c.cache {
+				if item.expiryTime.Before(time.Now().UTC()) {
+					delete(c.cache, key)
+				}
+			}
+
+			c.mu.Unlock()
+		case <-c.stopChan:
+			return
+		}
+	}
+}
+
+func (c *Cache) Stop() {
+	close(c.stopChan)
 }
