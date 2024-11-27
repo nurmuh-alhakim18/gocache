@@ -1,3 +1,5 @@
+![CI Build](https://github.com/nurmuh-alhakim18/gocache/actions/workflows/ci.yaml/badge.svg)
+
 # Simple Cache for Go
 
 A lightweight, thread-safe cache implementation in Go using LRU method
