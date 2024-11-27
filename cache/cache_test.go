@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetSetCache(t *testing.T) {
-	cache := NewCache()
+	cache := NewCache(10)
 
 	tests := []struct {
 		name  string
@@ -61,7 +61,7 @@ func TestGetSetCache(t *testing.T) {
 }
 
 func TestGetSetCacheJSON(t *testing.T) {
-	cache := NewCache()
+	cache := NewCache(10)
 
 	tests := []struct {
 		name  string
@@ -109,8 +109,39 @@ func TestGetSetCacheJSON(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	cache := NewCache(10)
+
+	tests := []struct {
+		name  string
+		key   string
+		value interface{}
+	}{
+		{
+			name:  "Get deleted key",
+			key:   "key1",
+			value: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cache.Set(tc.key, tc.value, 0)
+			actualItem, ok := cache.Get(tc.key)
+			assert.True(t, ok, "Key should exist in cache")
+			assert.Equal(t, tc.value, actualItem, "Actual value should match original value")
+
+			cache.Delete(tc.key)
+
+			actualItem, ok = cache.Get(tc.key)
+			assert.False(t, ok, "Key should not exist in cache")
+			assert.Nil(t, actualItem, "Actual item should be equal to Nil")
+		})
+	}
+}
+
 func TestGetExpired(t *testing.T) {
-	cache := NewCache()
+	cache := NewCache(10)
 
 	tests := []struct {
 		name          string
